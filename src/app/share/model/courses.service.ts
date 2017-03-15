@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { AngularFire, AngularFireDatabase } from 'angularfire2';
-import 'rxjs/add/operator/map';
+import 'rxjs/Rx'
 
 
 import { Course } from './course';
@@ -17,18 +17,32 @@ export class CoursesService {
     return this.db.list('courses').map(Course.fromJsonArray);
   }
 
-  findAllessonsForCourse(courseUrl: string): Observable<Lesson[]>{
-    const course$ = this.db.list('courses', {
-      query:{
+  findCourseByUrl(courseUrl: string): Observable<Course>{
+    return this.db.list('courses', {
+      query: {
         orderByChild: 'url',
         equalTo: courseUrl
       }
     })
-    .do(console.log);
+      .map(results => results[0]);
+  }
 
-    course$.subscribe();
+  findAllessonsForCourse(courseUrl: string): Observable<Lesson[]>{
+    const course$ = this.findCourseByUrl(courseUrl);
+    
+    const lessonsPerCourse$ = course$
+      .switchMap(course => this.db.list('lessonsPerCourse/' + course.$key));
+    
+    const courseLessons$ = lessonsPerCourse$
+      .map(lspc => lspc.map(lpc => this.db.object('lessons/' + lpc.$key)))
+      .flatMap(fbObj => Observable.combineLatest(fbObj))
+      .do(console.log);
 
-    return course$;
+    
+    
+    courseLessons$.subscribe();
+
+    return Observable.of([]);
   }
 
 
